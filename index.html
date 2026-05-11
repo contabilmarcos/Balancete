@@ -110,12 +110,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14
 .razao-search:focus{border-color:var(--accent-lt)}
 
 /* ── Cards row (above split) ── */
-.cards-area{padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--border2);display:flex;gap:8px;flex-wrap:wrap;}
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;flex:1;min-width:150px;}
-.card-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:3px}
-.card-value{font-family:var(--mono);font-size:14px;font-weight:600}
-.card-value.pos{color:var(--green)}.card-value.neg{color:var(--red)}.card-value.neu{color:var(--text)}
-.card-hint{font-size:9px;color:var(--text3);margin-top:2px}
+
 
 /* ── Tables ── */
 table{width:100%;border-collapse:collapse}
@@ -217,7 +212,6 @@ tr:last-child td{border-bottom:none}
     <button class="btn-clear" id="btnClear">✕ Limpar</button>
   </div>
 
-  <div class="cards-area" id="cardsArea"></div>
 
   <div class="main-layout">
     <!-- Balancete -->
@@ -512,7 +506,7 @@ function updateMesBtn(){
 function applyFilters(){
   const c=document.getElementById('selCentro').value;
   filtered=YEAR_DATA.filter(r=>(!c||r.centro===c)&&(!selectedMeses.size||selectedMeses.has(r.mes)));
-  updateMeta();buildCards();buildBalancete();
+  updateMeta();buildBalancete();
   // Refresh razão se conta selecionada
   if(razaoContaId)openRazao(razaoContaId,razaoContaNome);
 }
@@ -522,23 +516,6 @@ function updateMeta(){
     `${filtered.length.toLocaleString('pt-BR')} lançamentos · ${activeYear} · ${ms.map(m=>MESES[m]).join(', ')||'—'}`;
 }
 
-// ── Cards ─────────────────────────────────────────────────────────────────────
-function buildCards(){
-  const deb=filtered.filter(r=>r.valor>0).reduce((s,r)=>s+r.valor,0);
-  const cre=filtered.filter(r=>r.valor<0).reduce((s,r)=>s+r.valor,0);
-  const dataMax=filtered.reduce((m,r)=>r.data>m?r.data:m,'');
-  const centro=document.getElementById('selCentro').value;
-  const contas=[...new Set(filtered.map(r=>r.conta))];
-  let saldoAcum=0;
-  if(dataMax)for(const c of contas)saldoAcum+=calcSaldoAcumulado(c,dataMax,centro);
-  document.getElementById('cardsArea').innerHTML=[
-    {l:'Débito (período)',v:deb,c:'pos',h:''},
-    {l:'Crédito (período)',v:cre,c:'neg',h:''},
-    {l:'Saldo Acumulado',v:saldoAcum,c:saldoAcum>=0?'pos':'neg',h:dataMax?'Acumulado desde 2019 até '+dataMax:''},
-  ].map(({l,v,c,h})=>`<div class="card">
-    <div class="card-label">${l}</div>
-    <div class="card-value ${c}">${fmtBRL(v)}</div>
-    ${h?`<div class="card-hint">${h}</div>`:''}
   </div>`).join('');
 }
 
@@ -556,8 +533,15 @@ function buildBalancete(){
     if(r.valor>0)tree[g1][g2][g3][g4][lf].deb+=r.valor;else tree[g1][g2][g3][g4][lf].cre+=r.valor;
   }
   const uid=()=>Math.random().toString(36).slice(2);
+  const G1_ORDER=['Ativo','Passivo','Resultado do Exercício'];
   const nodes=[];
-  for(const[g1,g2m]of Object.entries(tree)){
+  const g1Keys=Object.keys(tree).sort((a,b)=>{
+    const ia=G1_ORDER.indexOf(a),ib=G1_ORDER.indexOf(b);
+    if(ia===-1&&ib===-1)return a<b?-1:1;
+    if(ia===-1)return 1;if(ib===-1)return -1;
+    return ia-ib;
+  });
+  for(const g1 of g1Keys){const g2m=tree[g1];
     const id1=uid();let d1=0,c1=0,s1=0;const ch2=[];
     for(const[g2,g3m]of Object.entries(g2m)){
       const id2=uid();let d2=0,c2=0,s2=0;const ch3=[];
