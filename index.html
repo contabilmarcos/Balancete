@@ -707,22 +707,38 @@ function renderRazaoPg(){
 // ── Exportar Excel ────────────────────────────────────────────────────────────
 function exportExcel(){
   if(!razaoContaId||!razaoFiltered.length)return;
-  const centro=document.getElementById('selCentro').value;
-  const rows=razaoFiltered.map(r=>{
-    const sr=calcSaldoRazao(r.conta,r.data,r.idx,centro);
-    return {
-      'Índice':r.idx,'Data':r.data,'Conta':r.conta,'Descrição':r.nome,
-      'Centro de Custo':r.centro,'Documento':r.documento,'Complemento':r.complemento,
-      'Valor':r.valor,'Tipo':r.tipo,'Saldo Razão':sr
-    };
-  });
-  const ws=XLSX.utils.json_to_sheet(rows);
-  // Larguras das colunas
-  ws['!cols']=[{wch:8},{wch:12},{wch:18},{wch:30},{wch:30},{wch:20},{wch:50},{wch:15},{wch:8},{wch:15}];
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Razão');
-  const nome=`Razao_${razaoContaId}_${activeYear}${document.getElementById('selMes').value?'_'+MESES[+document.getElementById('selMes').value]:''}.xlsx`;
-  XLSX.writeFile(wb,nome);
+  try{
+    const centro=document.getElementById('selCentro').value;
+    const rows=razaoFiltered.map(r=>{
+      const sr=calcSaldoRazao(r.conta,r.data,r.idx,centro);
+      const dataBR=r.data?r.data.slice(8)+'/'+r.data.slice(5,7)+'/'+r.data.slice(0,4):'';
+      return {
+        'Data':dataBR,
+        'Conta':r.conta,
+        'Descrição':r.nome,
+        'Centro de Custo':r.centro,
+        'Documento':r.documento,
+        'Complemento':r.complemento,
+        'Valor':r.valor,
+        'Tipo':r.tipo,
+        'Saldo Razão':sr
+      };
+    });
+    const ws=XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:13},{wch:18},{wch:30},{wch:28},{wch:20},{wch:50},{wch:15},{wch:10},{wch:15}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Razão');
+    // Monta nome com meses selecionados
+    const mesesNome=[...selectedMeses].sort((a,b)=>a-b).map(m=>MESES[m].slice(0,3)).join('-');
+    const nome=`Razao_${razaoContaId}_${activeYear}${mesesNome?'_'+mesesNome:''}.xlsx`;
+    // Usa blob para garantir download em qualquer contexto
+    const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([wbout],{type:'application/octet-stream'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=nome;a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e){alert('Erro ao exportar: '+e.message);}
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
