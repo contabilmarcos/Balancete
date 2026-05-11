@@ -313,7 +313,10 @@ let razaoPage=1;
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function classify(c,t){for(const[p,l]of t)if(c.startsWith(p))return l;return null;}
-function isDisp(c){return c.startsWith('1.01.01');}
+// Disponibilidades ignoram filtro de centro (saldo bancário real),
+// EXCETO 1.01.01.02.0004 (MENTORE BANK 481916) que respeita o centro.
+const CONTAS_CENTRO_EXCECAO=['1.01.01.02.0004'];
+function isDisp(c){return c.startsWith('1.01.01')&&!CONTAS_CENTRO_EXCECAO.includes(c);}
 const fmtBRL=v=>{const s=Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});return v<0?`-R$ ${s}`:`R$ ${s}`;};
 const fmtAbs=v=>Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 function showLoading(m){document.getElementById('loadingMsg').textContent=m;document.getElementById('loadingOverlay').classList.add('show');}
