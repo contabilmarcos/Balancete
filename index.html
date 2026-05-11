@@ -76,6 +76,15 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14
 .filter-group select:focus{border-color:var(--accent-lt)}
 .btn-clear{background:none;border:1px solid var(--border);color:var(--text2);border-radius:var(--radius);padding:4px 12px;font-size:12px;cursor:pointer;transition:all .15s;}
 .btn-clear:hover{border-color:var(--red);color:var(--red)}
+/* Mes picker */
+.mes-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:4px 10px;font-size:13px;font-family:var(--sans);cursor:pointer;outline:none;transition:border-color .15s;white-space:nowrap;}
+.mes-btn:hover,.mes-btn.open{border-color:var(--accent-lt);color:var(--accent-lt)}
+.mes-picker{position:absolute;top:calc(100% + 6px);left:0;z-index:200;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.mes-picker-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border2);}
+.mes-check-item{display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px;color:var(--text2);transition:color .1s;}
+.mes-check-item:hover{color:var(--text)}
+.mes-check-item input[type=checkbox]{accent-color:var(--accent-lt);width:14px;height:14px;cursor:pointer;}
+.mes-check-item.checked{color:var(--accent-lt)}
 
 /* ── Main split layout ── */
 #app{display:none}
@@ -194,9 +203,16 @@ tr:last-child td{border-bottom:none}
       <label>Centro de Custo</label>
       <select id="selCentro"><option value="">Todos</option></select>
     </div>
-    <div class="filter-group">
+    <div class="filter-group" style="position:relative">
       <label>Mês</label>
-      <select id="selMes"><option value="">Todos</option></select>
+      <button class="mes-btn" id="mesBtnToggle" onclick="toggleMesPicker()">Todos ▾</button>
+      <div class="mes-picker" id="mesPicker" style="display:none">
+        <div class="mes-picker-header">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text3)">Selecionar Meses</span>
+          <button onclick="clearMeses()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:0">Limpar</button>
+        </div>
+        <div id="mesCheckboxes"></div>
+      </div>
     </div>
     <button class="btn-clear" id="btnClear">✕ Limpar</button>
   </div>
@@ -245,13 +261,10 @@ tr:last-child td{border-bottom:none}
         </div>
         <table id="razaoTable" style="display:none">
           <thead><tr>
-            <th>#</th>
             <th>Data</th>
-            <th>Centro de Custo</th>
             <th>Documento</th>
             <th>Complemento</th>
             <th class="col-num">Valor</th>
-            <th>Tipo</th>
             <th class="col-num">Saldo Razão</th>
           </tr></thead>
           <tbody id="razaoBody"></tbody>
@@ -442,19 +455,63 @@ async function skipUpload(){
 }
 
 // ── Filtros ───────────────────────────────────────────────────────────────────
-function resetFilters(){document.getElementById('selCentro').value='';document.getElementById('selMes').value='';}
+function resetFilters(){
+  document.getElementById('selCentro').value='';
+  clearMeses();
+}
 function buildSelects(){
-  const centro=document.getElementById('selCentro'),mes=document.getElementById('selMes');
+  const centro=document.getElementById('selCentro');
   const cs=[...new Set(YEAR_DATA.map(r=>r.centro).filter(Boolean))].sort();
   const ms=[...new Set(YEAR_DATA.map(r=>r.mes).filter(Boolean))].sort((a,b)=>a-b);
   centro.innerHTML='<option value="">Todos</option>';
   cs.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;centro.appendChild(o);});
-  mes.innerHTML='<option value="">Todos</option>';
-  ms.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=MESES[m];mes.appendChild(o);});
+  // Build month checkboxes
+  const cont=document.getElementById('mesCheckboxes');
+  cont.innerHTML='';
+  ms.forEach(m=>{
+    const lbl=document.createElement('label');
+    lbl.className='mes-check-item';
+    lbl.innerHTML=`<input type="checkbox" value="${m}" onchange="onMesChange(this)"/>${MESES[m]}`;
+    cont.appendChild(lbl);
+  });
+  updateMesBtn();
+}
+
+// Selected months set
+let selectedMeses=new Set();
+
+function toggleMesPicker(){
+  const p=document.getElementById('mesPicker');
+  const btn=document.getElementById('mesBtnToggle');
+  const open=p.style.display==='none';
+  p.style.display=open?'block':'none';
+  btn.classList.toggle('open',open);
+}
+// Close picker on outside click
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.filter-group'))document.getElementById('mesPicker').style.display='none',
+    document.getElementById('mesBtnToggle').classList.remove('open');
+});
+function onMesChange(cb){
+  const m=+cb.value;
+  if(cb.checked){selectedMeses.add(m);cb.closest('label').classList.add('checked');}
+  else{selectedMeses.delete(m);cb.closest('label').classList.remove('checked');}
+  updateMesBtn();applyFilters();
+}
+function clearMeses(){
+  selectedMeses.clear();
+  document.querySelectorAll('#mesCheckboxes input').forEach(cb=>{cb.checked=false;cb.closest('label').classList.remove('checked');});
+  updateMesBtn();applyFilters();
+}
+function updateMesBtn(){
+  const btn=document.getElementById('mesBtnToggle');
+  if(!selectedMeses.size){btn.textContent='Todos ▾';return;}
+  const names=[...selectedMeses].sort((a,b)=>a-b).map(m=>MESES[m].slice(0,3));
+  btn.textContent=names.join(', ')+' ▾';
 }
 function applyFilters(){
-  const c=document.getElementById('selCentro').value,m=+document.getElementById('selMes').value||0;
-  filtered=YEAR_DATA.filter(r=>(!c||r.centro===c)&&(!m||r.mes===m));
+  const c=document.getElementById('selCentro').value;
+  filtered=YEAR_DATA.filter(r=>(!c||r.centro===c)&&(!selectedMeses.size||selectedMeses.has(r.mes)));
   updateMeta();buildCards();buildBalancete();
   // Refresh razão se conta selecionada
   if(razaoContaId)openRazao(razaoContaId,razaoContaNome);
@@ -594,15 +651,14 @@ function clearRazao(){
 function openRazao(contaId,contaNome){
   razaoContaId=contaId;razaoContaNome=contaNome;
   const centro=document.getElementById('selCentro').value;
-  const mes=+document.getElementById('selMes').value||0;
   const ig=isDisp(contaId);
 
   // Filtra lançamentos da conta: respeita filtros de tempo do ano ativo
   // Para disponibilidades ignora centro, demais respeitam
   razaoRows=TODOS.filter(r=>{
     if(r.conta!==contaId)return false;
-    if(r.ano!==activeYear)return false; // razão mostra o ano selecionado
-    if(mes&&r.mes!==mes)return false;
+    if(r.ano!==activeYear)return false;
+    if(selectedMeses.size&&!selectedMeses.has(r.mes))return false;
     if(!ig&&centro&&r.centro!==centro)return false;
     return true;
   });
@@ -634,14 +690,12 @@ function renderRazaoPg(){
   document.getElementById('razaoBody').innerHTML=pg.map(r=>{
     const sr=calcSaldoRazao(r.conta,r.data,r.idx,centro);
     const sc=sr>0?'sr-pos':sr<0?'sr-neg':'sr-zero';
+    const dataBR=r.data?r.data.slice(8)+'/'+r.data.slice(5,7)+'/'+r.data.slice(0,4):'—';
     return `<tr>
-      <td style="font-family:var(--mono);font-size:10px;color:var(--text3)">${r.idx}</td>
-      <td style="white-space:nowrap;font-family:var(--mono);font-size:11px">${r.data}</td>
-      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${r.centro}">${r.centro||'—'}</td>
-      <td style="font-family:var(--mono);font-size:10px">${r.documento||'—'}</td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${r.complemento}">${r.complemento||'—'}</td>
+      <td style="white-space:nowrap;font-family:var(--mono);font-size:12px">${dataBR}</td>
+      <td style="font-family:var(--mono);font-size:11px">${r.documento||'—'}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${r.complemento}">${r.complemento||'—'}</td>
       <td class="col-num" style="font-family:var(--mono);font-size:12px;color:${r.valor>0?'var(--green)':'var(--red)'}">${fmtBRL(r.valor)}</td>
-      <td><span class="badge-${r.tipo==='Débito'?'deb':'cre'}">${r.tipo}</span></td>
       <td class="col-num ${sc}">${fmtBRL(sr)}</td>
     </tr>`;
   }).join('');
@@ -688,7 +742,6 @@ function exportExcel(){
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.getElementById('selCentro').addEventListener('change',applyFilters);
-document.getElementById('selMes').addEventListener('change',applyFilters);
 document.getElementById('btnClear').addEventListener('click',()=>{resetFilters();applyFilters();});
 document.getElementById('razaoSearch').addEventListener('input',e=>filterRazao(e.target.value.trim().toLowerCase()));
 </script>
