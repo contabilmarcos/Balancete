@@ -143,6 +143,24 @@ tr:last-child td{border-bottom:none}
 .sr-pos{color:var(--green);font-family:var(--mono);font-size:12px}
 .sr-neg{color:var(--red);font-family:var(--mono);font-size:12px}
 .sr-zero{color:var(--text3);font-family:var(--mono);font-size:12px}
+/* ── Conciliação ── */
+.btn-conciliar{display:flex;align-items:center;gap:5px;background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.35);color:var(--yellow);border-radius:var(--radius);padding:5px 12px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn-conciliar:hover{background:rgba(210,153,34,.2)}
+.btn-conciliar.ativo{background:var(--yellow);color:#000;border-color:var(--yellow)}
+.concil-bar{display:none;align-items:center;gap:16px;padding:10px 16px;background:#1a1600;border-top:1px solid rgba(210,153,34,.3);flex-shrink:0;flex-wrap:wrap;}
+.concil-bar.show{display:flex}
+.concil-item{display:flex;flex-direction:column;gap:2px}
+.concil-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)}
+.concil-val{font-family:var(--mono);font-size:14px;font-weight:600}
+.concil-sep{width:1px;height:32px;background:var(--border);flex-shrink:0}
+.concil-actions{margin-left:auto;display:flex;gap:8px}
+.btn-concil-export{display:flex;align-items:center;gap:5px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);color:var(--green);border-radius:var(--radius);padding:5px 12px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-concil-export:hover{background:rgba(63,185,80,.2)}
+.btn-concil-limpar{background:none;border:1px solid var(--border);color:var(--text3);border-radius:var(--radius);padding:5px 10px;font-size:12px;cursor:pointer;transition:all .15s;}
+.btn-concil-limpar:hover{border-color:var(--red);color:var(--red)}
+tr.concil-selected td{background:rgba(210,153,34,.08)!important}
+tr.concil-selected{outline:1px solid rgba(210,153,34,.3)}
+.concil-cb{accent-color:var(--yellow);width:14px;height:14px;cursor:pointer;}
 
 /* ── Pagination ── */
 .pagination{display:flex;align-items:center;gap:4px;padding:8px 12px;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border2);background:var(--bg2);flex-shrink:0;}
@@ -241,6 +259,9 @@ tr:last-child td{border-bottom:none}
         <div class="razao-actions">
           <input type="search" class="razao-search" id="razaoSearch" placeholder="Buscar…" style="display:none"/>
           <span id="razaoCount" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
+          <button class="btn-conciliar" id="btnConciliar" onclick="toggleConciliar()" style="display:none">
+            ⊡ Conciliar
+          </button>
           <button class="btn-export" id="btnExport" onclick="exportExcel()" style="display:none">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 6.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 5.293V1.5a.5.5 0 0 0-1 0v3.793L5.354 3.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
             Exportar Excel
@@ -254,7 +275,7 @@ tr:last-child td{border-bottom:none}
           <div style="font-size:11px;color:var(--text3)">O razão da conta aparecerá aqui</div>
         </div>
         <table id="razaoTable" style="display:none">
-          <thead><tr>
+          <thead><tr id="razaoThead">
             <th>Data</th>
             <th>Documento</th>
             <th>Complemento</th>
@@ -263,6 +284,34 @@ tr:last-child td{border-bottom:none}
           </tr></thead>
           <tbody id="razaoBody"></tbody>
         </table>
+      </div>
+      <div class="concil-bar" id="concilBar">
+        <div class="concil-item">
+          <span class="concil-lbl">Selecionados</span>
+          <span class="concil-val" id="concilCount" style="color:var(--text)">0</span>
+        </div>
+        <div class="concil-sep"></div>
+        <div class="concil-item">
+          <span class="concil-lbl">Total Débito</span>
+          <span class="concil-val" id="concilDeb" style="color:var(--green)">R$ 0,00</span>
+        </div>
+        <div class="concil-sep"></div>
+        <div class="concil-item">
+          <span class="concil-lbl">Total Crédito</span>
+          <span class="concil-val" id="concilCre" style="color:var(--red)">R$ 0,00</span>
+        </div>
+        <div class="concil-sep"></div>
+        <div class="concil-item">
+          <span class="concil-lbl">Diferença</span>
+          <span class="concil-val" id="concilDif">R$ 0,00</span>
+        </div>
+        <div class="concil-actions">
+          <button class="btn-concil-limpar" onclick="limparConciliacao()">✕ Limpar seleção</button>
+          <button class="btn-concil-export" onclick="exportConciliacao()">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 6.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 5.293V1.5a.5.5 0 0 0-1 0v3.793L5.354 3.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+            Exportar Conciliação
+          </button>
+        </div>
       </div>
       <div class="pagination" id="razaoPag" style="display:none"></div>
     </div>
@@ -310,6 +359,9 @@ let razaoContaNome=null;
 let razaoRows=[];
 let razaoFiltered=[];
 let razaoPage=1;
+// Conciliação state
+let concilModo=false;
+let concilSelecionados=new Set(); // Set de r.idx selecionados
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function classify(c,t){for(const[p,l]of t)if(c.startsWith(p))return l;return null;}
@@ -651,6 +703,8 @@ function clearRazao(){
   document.getElementById('razaoTable').style.display='none';
   document.getElementById('razaoPag').style.display='none';
   document.getElementById('btnExport').style.display='none';
+  document.getElementById('btnConciliar').style.display='none';
+  if(concilModo)toggleConciliar();
   document.getElementById('razaoSearch').style.display='none';
   document.getElementById('razaoCount').textContent='';
   document.getElementById('razaoSearch').value='';
@@ -678,6 +732,7 @@ function openRazao(contaId,contaNome){
   buildSaldoRazaoCache(contaId,centroAtual);
   document.getElementById('razaoConta').textContent=`${contaId} — ${contaNome}`;
   document.getElementById('btnExport').style.display='flex';
+  document.getElementById('btnConciliar').style.display='flex';
   document.getElementById('razaoSearch').style.display='block';
   document.getElementById('razaoEmpty').style.display='none';
   document.getElementById('razaoTable').style.display='table';
@@ -702,7 +757,10 @@ function renderRazaoPg(){
     const sr=calcSaldoRazao(r.conta,r.data,r.idx,centro);
     const sc=sr>0?'sr-pos':sr<0?'sr-neg':'sr-zero';
     const dataBR=r.data?r.data.slice(8)+'/'+r.data.slice(5,7)+'/'+r.data.slice(0,4):'—';
-    return `<tr>
+    const sel=concilSelecionados.has(r.idx);
+    const cbCol=concilModo?`<td style="padding:7px 8px"><input type="checkbox" class="concil-cb" data-idx="${r.idx}" ${sel?'checked':''}></td>`:'';
+    return `<tr class="${sel?'concil-selected':''}" data-idx="${r.idx}">
+      ${cbCol}
       <td style="white-space:nowrap;font-family:var(--mono);font-size:12px">${dataBR}</td>
       <td style="font-family:var(--mono);font-size:11px">${r.documento||'—'}</td>
       <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${r.complemento}">${r.complemento||'—'}</td>
@@ -710,6 +768,18 @@ function renderRazaoPg(){
       <td class="col-num ${sc}">${fmtBRL(sr)}</td>
     </tr>`;
   }).join('');
+  // Eventos dos checkboxes
+  document.querySelectorAll('.concil-cb').forEach(cb=>{
+    cb.addEventListener('change',e=>{
+      const idx=+e.target.dataset.idx;
+      if(e.target.checked)concilSelecionados.add(idx);
+      else concilSelecionados.delete(idx);
+      // Atualiza visual da linha
+      const tr=e.target.closest('tr');
+      tr.classList.toggle('concil-selected',e.target.checked);
+      atualizaConcilBar();
+    });
+  });
 
   const pag=document.getElementById('razaoPag');
   const total=Math.ceil(razaoFiltered.length/RAZAO_PAGE);
@@ -731,6 +801,105 @@ function renderRazaoPg(){
 }
 
 // ── Exportar Excel ────────────────────────────────────────────────────────────
+// ── Conciliação ───────────────────────────────────────────────────────────────
+function toggleConciliar(){
+  concilModo=!concilModo;
+  const btn=document.getElementById('btnConciliar');
+  const bar=document.getElementById('concilBar');
+  btn.classList.toggle('ativo',concilModo);
+  btn.textContent=concilModo?'✓ Conciliando…':'⊡ Conciliar';
+  bar.classList.toggle('show',concilModo);
+  // Adiciona/remove coluna de checkbox no thead
+  const thead=document.getElementById('razaoThead');
+  if(concilModo){
+    const th=document.createElement('th');
+    th.id='thCb';th.style.width='30px';
+    thead.insertBefore(th,thead.firstChild);
+  } else {
+    const th=document.getElementById('thCb');
+    if(th)th.remove();
+    limparConciliacao();
+  }
+  renderRazaoPg();
+}
+
+function atualizaConcilBar(){
+  const selecionados=razaoFiltered.filter(r=>concilSelecionados.has(r.idx));
+  const deb=selecionados.filter(r=>r.valor>0).reduce((s,r)=>s+r.valor,0);
+  const cre=selecionados.filter(r=>r.valor<0).reduce((s,r)=>s+r.valor,0);
+  const dif=deb+cre;
+  document.getElementById('concilCount').textContent=selecionados.length;
+  document.getElementById('concilDeb').textContent=fmtBRL(deb);
+  document.getElementById('concilCre').textContent=fmtBRL(cre);
+  const difEl=document.getElementById('concilDif');
+  difEl.textContent=fmtBRL(dif);
+  difEl.style.color=Math.abs(dif)<0.01?'var(--green)':dif>0?'var(--green)':'var(--red)';
+}
+
+function limparConciliacao(){
+  concilSelecionados.clear();
+  document.querySelectorAll('.concil-cb').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('tr.concil-selected').forEach(tr=>tr.classList.remove('concil-selected'));
+  atualizaConcilBar();
+}
+
+function exportConciliacao(){
+  const selecionados=razaoFiltered.filter(r=>concilSelecionados.has(r.idx));
+  if(!selecionados.length){alert('Selecione ao menos um lançamento.');return;}
+  try{
+    const centro=document.getElementById('selCentro').value;
+    const deb=selecionados.filter(r=>r.valor>0).reduce((s,r)=>s+r.valor,0);
+    const cre=selecionados.filter(r=>r.valor<0).reduce((s,r)=>s+r.valor,0);
+    const dif=deb+cre;
+    const rows=selecionados.map(r=>{
+      const dataBR=r.data?r.data.slice(8)+'/'+r.data.slice(5,7)+'/'+r.data.slice(0,4):'';
+      return {
+        'Data':dataBR,'Conta':r.conta,'Descrição':r.nome,
+        'Centro de Custo':r.centro,'Documento':r.documento,
+        'Complemento':r.complemento,'Valor':r.valor,'Tipo':r.tipo
+      };
+    });
+    // Linha de totais
+    rows.push({});
+    rows.push({'Data':'TOTAIS','Complemento':'','Documento':'',
+      'Valor':'','Tipo':'',
+      'Centro de Custo':'Débito:','Conta':deb,'Descrição':'Crédito:'});
+    rows.push({'Data':'','Centro de Custo':'Débito total','Conta':deb,
+      'Descrição':'Crédito total','Documento':cre,'Complemento':'Diferença','Valor':dif,'Tipo':''});
+    const ws=XLSX.utils.json_to_sheet(selecionados.map(r=>{
+      const dataBR=r.data?r.data.slice(8)+'/'+r.data.slice(5,7)+'/'+r.data.slice(0,4):'';
+      return {'Data':dataBR,'Conta':r.conta,'Descrição':r.nome,
+        'Centro de Custo':r.centro,'Documento':r.documento,
+        'Complemento':r.complemento,'Valor':r.valor,'Tipo':r.tipo};
+    }));
+    ws['!cols']=[{wch:13},{wch:18},{wch:30},{wch:28},{wch:20},{wch:50},{wch:15},{wch:10}];
+    // Aba de resumo
+    const resumo=[
+      {'Item':'Conta',       'Valor':razaoContaId+' — '+razaoContaNome},
+      {'Item':'Ano',         'Valor':activeYear},
+      {'Item':'Lançamentos', 'Valor':selecionados.length},
+      {'Item':'Total Débito','Valor':deb},
+      {'Item':'Total Crédito','Valor':cre},
+      {'Item':'Diferença',   'Valor':dif},
+      {'Item':'Conciliado',  'Valor':Math.abs(dif)<0.01?'SIM — Diferença zero':'NÃO — Existe diferença'},
+    ];
+    const wsRes=XLSX.utils.json_to_sheet(resumo);
+    wsRes['!cols']=[{wch:20},{wch:50}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Lançamentos');
+    XLSX.utils.book_append_sheet(wb,wsRes,'Resumo');
+    const now=new Date();
+    const nome=`Conciliacao_${razaoContaId}_${activeYear}_${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${now.getFullYear()}.xlsx`;
+    const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([wbout],{type:'application/octet-stream'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=nome;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }catch(e){alert('Erro ao exportar: '+e.message);}
+}
+
 function exportExcel(){
   if(!razaoContaId||!razaoFiltered.length){alert('Selecione uma conta no balancete primeiro.');return;}
   try{
